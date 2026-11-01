@@ -1,0 +1,53 @@
+services:
+  n8n:
+    image: docker.n8n.io/n8nio/n8n:2.45.5
+    restart: unless-stopped
+
+    # Keep n8n available locally, but do not expose it directly to the LAN/internet.
+    ports:
+      - "127.0.0.1:5678:5678"
+
+    environment:
+      GENERIC_TIMEZONE: Asia/Kolkata
+      TZ: Asia/Kolkata
+
+      # Keep the same encryption key as your existing n8n installation.
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY:?Set N8N_ENCRYPTION_KEY in .env}
+
+      # Public hostname and reverse-proxy settings.
+      N8N_HOST: ${N8N_HOST:?Set N8N_HOST in .env, e.g. n8n.example.com}
+      N8N_PROTOCOL: https
+      N8N_PORT: 5678
+      N8N_EDITOR_BASE_URL: https://${N8N_HOST}/
+      N8N_WEBHOOK_URL: https://${N8N_HOST}/
+      N8N_PROXY_HOPS: 1
+
+      N8N_ENFORCE_SETTINGS_FILE_PERMISSIONS: "true"
+
+      # Existing runner settings retained from your original compose file.
+      N8N_CONCURRENCY_PRODUCTION_LIMIT: "115"
+      N8N_RUNNERS_MAX_CONCURRENCY: "115"
+
+      # Runner timeouts retained from your original compose file.
+      N8N_RUNNERS_TASK_ACCEPT_TIMEOUT: "30"
+      N8N_RUNNERS_GRANT_TOKEN_TTL: "60"
+      N8N_RUNNERS_TASK_TIMEOUT: "300"
+
+    volumes:
+      - n8n_data:/home/node/.n8n
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    command:
+      - tunnel
+      - --no-autoupdate
+      - run
+      - --token
+      - ${CLOUDFLARE_TUNNEL_TOKEN:?Set CLOUDFLARE_TUNNEL_TOKEN in .env}
+    depends_on:
+      - n8n
+
+volumes:
+  n8n_data:
+    # Keep this volume name unchanged when migrating an existing Compose project.
